@@ -91,3 +91,88 @@ async def analyze_face(
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+import httpx
+
+@app.post("/apply/makeup")
+async def apply_makeup(
+    image: UploadFile = File(...),
+    lip_color: Optional[str] = Form(default=None),
+    blush_color: Optional[str] = Form(default=None),
+    eye_color: Optional[str] = Form(default=None),
+):
+    import base64
+    contents = await image.read()
+    image_b64 = base64.b64encode(contents).decode()
+    image_data_url = f"data:image/jpeg;base64,{image_b64}"
+
+    replicate_token = os.getenv("REPLICATE_API_TOKEN", "")
+
+    payload = {
+        "version": "7af9a66f36f97fee2fece7dcc927551a951f0022d13463328f06c694d6e1b3a0",
+        "input": {
+            "image": image_data_url,
+            "lip_color": lip_color or "#C0395A",
+            "eyeshadow_color": eye_color or "#5B4A8A",
+            "blush_color": blush_color or "#C85A7A",
+        }
+    }
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        response = await client.post(
+            "https://api.replicate.com/v1/predictions",
+            headers={
+                "Authorization": f"Token {replicate_token}",
+                "Content-Type": "application/json"
+            },
+            json=payload
+        )
+        result = response.json()
+
+        prediction_id = result.get("id")
+        for _ in range(30):
+            import asyncio
+            await asyncio.sleep(3)
+            poll = await client.get(
+                f"https://api.replicate.com/v1/predictions/{prediction_id}",
+                headers={"Authorization": f"Token {replicate_token}"}
+            )
+            poll_result = poll.json()
+            if poll_result.get("status") == "succeeded":
+                return {
+                    "success": True,
+                    "output_image": poll_result.get("output")
+                }
+            elif poll_result.get("status") == "failed":
+                return {"success": False, "error": "메이크업 적용 실패"}
+
+    return {"success": False, "error": "타임아웃"}
+```
+
+**Commit changes** 클릭
+
+---
+
+**STEP 4 — Render에 API 토큰 환경변수 추가**
+
+Render → makeup-api → **Environment** → **Add Environment Variable**
+
+- Key: `REPLICATE_API_TOKEN`
+- Value: STEP 2에서 복사한 토큰
+
+**Save Changes** → **Manual Deploy** → **Deploy latest commit**
+
+---
+
+**STEP 5 — Base44 채팅창에 입력**
+```
+메이크업 시뮬레이터에 Replicate AI 메이크업 합성 기능을 추가해줘.
+
+컬러 스워치를 클릭하면:
+1. 선택한 컬러 HEX값을 POST https://makeup-api-30zj.onrender.com/apply/makeup 으로 전송
+   - image: 업로드된 사진
+   - lip_color: 선택한 립 컬러 HEX (입술 탭일 때)
+   - blush_color: 선택한 블러셔 컬러 HEX (블러셔 탭일 때)
+   - eye_color: 선택한 아이섀도우 컬러 HEX (아이섀도우 탭일 때)
+2. 로딩 중 "AI가 메이크업을 적용하고 있어요..." 표시
+3. 응답의 output_image URL을 원본 사진 자리에 표시
+4. "다시 선택" 버튼으로 원본 사진으로 돌아가기
