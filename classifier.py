@@ -125,15 +125,3 @@ class PersonalColorClassifier:
         elif L >= 44: return "medium"
         elif L >= 30: return "low"
         return "very_low"
-```
-
----
-
-**파일 4 — requirements.txt**
-```
-fastapi==0.111.0
-uvicorn==0.29.0
-python-multipart==0.0.9
-opencv-python-headless==4.9.0.80
-numpy==1.26.4
-Pillow==10.3.0
