@@ -97,7 +97,7 @@ async def apply_makeup(
     image_data_url = f"data:image/jpeg;base64,{image_b64}"
     replicate_token = os.getenv("REPLICATE_API_TOKEN", "")
     payload = {
-        "version": "7af9a66f36f97fee2fece7dcc927551a951f0022d13463328f06c694d6e1b3a0",
+        "version": "d755e4878e16a1ecf0ffc5b8fa785237d1245793f4494cfe80e49c5b41898e8a",
         "input": {
             "image": image_data_url,
             "lip_color": lip_color or "#C0395A",
